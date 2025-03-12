@@ -1,12 +1,16 @@
 const express = require('express')
 const mongoose = require('mongoose')
+const cookieParser = require('cookie-parser')
 const routes = require('./routes/index')
+const cors = require('cors')
 require('dotenv').config()
 
 const app = express()
 const PORT = process.env.PORT || 3000
 
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }))
 app.use(express.json())
+app.use(cookieParser())
 app.use('/api', routes)
 
 mongoose
