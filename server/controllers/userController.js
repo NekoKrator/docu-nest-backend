@@ -17,6 +17,20 @@ const getUser = async (req, res) => {
     }
 }
 
+const getUserByUsername = async (req, res) => {
+    try {
+        const user = await User.findOne({
+            username: req.params.username,
+        }).select('-password')
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' })
+        }
+        res.status(200).json(user)
+    } catch (err) {
+        res.status(500).json({ message: 'Server error', err })
+    }
+}
+
 const updateUser = [
     body('email')
         .optional()
@@ -99,4 +113,4 @@ const deleteUser = async (req, res) => {
     }
 }
 
-module.exports = { getUser, updateUser, deleteUser }
+module.exports = { getUser, getUserByUsername, updateUser, deleteUser }

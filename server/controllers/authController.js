@@ -89,16 +89,16 @@ const login = [
 
             res.cookie('accessToken', accessToken, {
                 httpOnly: true,
-                maxAge: 60 * 60 * 1000, // 1h
+                maxAge: 60 * 60 * 1000,
                 secure: false,
-                sameSite: 'None',
+                sameSite: 'Lax',
             })
 
             res.cookie('refreshToken', refreshToken, {
                 httpOnly: true,
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7d
+                maxAge: 7 * 24 * 60 * 60 * 1000,
                 secure: false,
-                sameSite: 'None',
+                sameSite: 'Lax',
             })
 
             res.status(200).json({ message: 'Login successful' })
@@ -143,8 +143,16 @@ const refreshToken = async (req, res) => {
 }
 
 const logout = async (req, res) => {
-    res.clearCookie('accessToken')
-    res.clearCookie('refreshToken')
+    res.clearCookie('accessToken', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'Lax',
+    })
+    res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'Lax',
+    })
     res.status(200).json({ message: 'Logout successful' })
 }
 

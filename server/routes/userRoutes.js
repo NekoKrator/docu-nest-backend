@@ -4,6 +4,7 @@ const userController = require('../controllers/userController')
 const authMiddleware = require('../middlewares/authMiddleware')
 
 router.get('/me', authMiddleware, userController.getUser)
+router.get('/user/:username', authMiddleware, userController.getUserByUsername)
 router.patch('/me', authMiddleware, userController.updateUser)
 router.delete('/me', authMiddleware, userController.deleteUser)
 
