@@ -4,12 +4,8 @@ const Schema = mongoose.Schema
 const fileSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true },
-        url: { type: String, required: true }, // Убедитесь, что это поле обязательно
-        folder: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Folder',
-            required: true,
-        },
+        url: { type: String, required: true },
+        folder: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder' },
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',

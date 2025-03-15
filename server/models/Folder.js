@@ -10,6 +10,7 @@ const FolderSchema = new mongoose.Schema({
     },
     isPublic: { type: Boolean, default: false },
     megaUrl: { type: String, required: true },
+    files: [{ type: mongoose.Schema.Types.ObjectId, ref: 'File' }],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 })

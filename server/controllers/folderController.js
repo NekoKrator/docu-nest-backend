@@ -5,7 +5,6 @@ const { body, query, param, validationResult } = require('express-validator')
 const { Storage } = require('megajs')
 require('dotenv').config()
 
-// Подключение к Mega один раз при старте (можно вынести в отдельный модуль)
 const initializeMega = async () => {
     const storage = new Storage({
         email: process.env.MEGA_EMAIL,
@@ -56,9 +55,10 @@ const getFolders = [
                 query.parentFolder = parentId === 'null' ? null : parentId
             }
 
-            const folders = await Folder.find(query)
-                .populate('parentFolder', 'name')
-                .populate('files', 'name url')
+            const folders = await Folder.find(query).populate(
+                'parentFolder',
+                'name'
+            )
 
             res.status(200).json(folders)
         } catch (err) {
@@ -348,4 +348,5 @@ module.exports = {
     updateFolder,
     deleteFolder,
     getPublicFoldersByUser,
+    initializeMega,
 }
