@@ -2,6 +2,34 @@ const mongoose = require('mongoose')
 const Folder = require('../models/Folder')
 const File = require('../models/File')
 const { body, query, param, validationResult } = require('express-validator')
+const { Storage } = require('megajs')
+require('dotenv').config()
+
+// Подключение к Mega один раз при старте (можно вынести в отдельный модуль)
+const initializeMega = async () => {
+    const storage = new Storage({
+        email: process.env.MEGA_EMAIL,
+        password: process.env.MEGA_PASSWORD,
+    })
+    await storage.ready
+    return storage
+}
+
+const ensureMegaStructure = async (storage, userId) => {
+    const rootFolder = storage.root
+    let docuNestFolder = rootFolder.children.find((f) => f.name === 'DocuNest')
+
+    if (!docuNestFolder) {
+        docuNestFolder = await rootFolder.mkdir('DocuNest')
+    }
+
+    let userFolder = docuNestFolder.children.find((f) => f.name === userId) // Используем userId
+    if (!userFolder) {
+        userFolder = await docuNestFolder.mkdir(userId) // Создаем папку с именем userId
+    }
+
+    return { docuNestFolder, userFolder }
+}
 
 const getFolders = [
     query('parentId')
@@ -69,21 +97,111 @@ const createFolder = [
 
         try {
             const { name, parentFolder, isPublic } = req.body
+            const userId = req.userID
 
+            if (!userId) {
+                return res
+                    .status(401)
+                    .json({ message: 'User ID not found in token' })
+            }
+
+            const storage = await initializeMega()
+            const { userFolder } = await ensureMegaStructure(storage, userId)
+
+            const createFolderWithRetry = async (
+                parentFolder,
+                name,
+                retries = 5,
+                delay = 5000
+            ) => {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        console.log(
+                            `Attempting to create folder "${name}" in Mega under parent ID:`,
+                            parentFolder.nodeId
+                        )
+                        const megaFolder = await parentFolder.mkdir(name)
+                        console.log(
+                            `Folder "${name}" created successfully with ID:`,
+                            megaFolder.nodeId
+                        )
+                        return megaFolder
+                    } catch (err) {
+                        if (err.message.includes('EAGAIN') && i < retries - 1) {
+                            console.log(
+                                `Retrying mkdir (${i + 1}/${retries}) after ${delay}ms...`
+                            )
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, delay)
+                            )
+                            continue
+                        }
+                        throw err
+                    }
+                }
+            }
+
+            let megaFolder
+            if (parentFolder) {
+                // Находим родительскую папку в MongoDB
+                const parentFolderDoc = await Folder.findOne({
+                    _id: parentFolder,
+                    user: req.userID,
+                })
+                if (!parentFolderDoc) {
+                    return res
+                        .status(404)
+                        .json({ message: 'Parent folder not found in MongoDB' })
+                }
+
+                // Извлекаем nodeId из megaUrl (например, "https://mega.nz/fm/<nodeId>")
+                const parentNodeId = parentFolderDoc.megaUrl.split('/fm/')[1]
+                console.log(
+                    'Looking for parent folder in Mega with nodeId:',
+                    parentNodeId
+                )
+
+                // Ищем родительскую папку в Mega по nodeId
+                const parentMegaFolder = storage.root.children
+                    .flatMap((f) => f.children || []) // DocuNest и ниже
+                    .flatMap((f) => f.children || []) // <userId> и ниже
+                    .find((f) => f.nodeId === parentNodeId)
+
+                if (!parentMegaFolder) {
+                    return res
+                        .status(404)
+                        .json({ message: 'Parent folder not found in Mega' })
+                }
+
+                // Создаем новую папку внутри найденной родительской папки
+                megaFolder = await createFolderWithRetry(parentMegaFolder, name)
+            } else {
+                // Создаем папку в корневой директории пользователя, если parentFolder не указан
+                megaFolder = await createFolderWithRetry(userFolder, name)
+            }
+
+            // Формируем внутреннюю ссылку
+            const megaUrl = `https://mega.nz/fm/${megaFolder.nodeId}`
+            console.log('Generated internal Mega link:', megaUrl)
+
+            // Сохраняем в MongoDB
             const folder = new Folder({
                 name,
                 user: req.userID,
                 parentFolder: parentFolder || null,
                 isPublic: isPublic || false,
+                megaUrl,
             })
 
             await folder.save()
-            res.status(201).json({ message: 'Folder created', folder })
+            res.status(201).json({ message: 'Folder created', megaUrl })
         } catch (err) {
-            if (err.code === 11000) {
-                return res.status(400).json({
+            console.error('Folder creation error:', err.message, err.stack)
+            if (err.message.includes('EAGAIN')) {
+                return res.status(503).json({
                     message:
-                        'Folder with this name already exists in this location',
+                        'Mega server is temporarily unavailable. Please try again later.',
+                    error: err.message,
                 })
             }
             res.status(500).json({

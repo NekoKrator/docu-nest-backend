@@ -1,40 +1,17 @@
 const mongoose = require('mongoose')
-const Schema = mongoose.Schema
 
-const folderSchema = new mongoose.Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        user: {
-            type: Schema.Types.ObjectId,
-            ref: 'User',
-            required: true,
-            index: true,
-        },
-        parentFolder: {
-            type: Schema.Types.ObjectId,
-            ref: 'Folder',
-            default: null,
-            index: true,
-        },
-        files: [
-            {
-                type: Schema.Types.ObjectId,
-                ref: 'File',
-            },
-        ],
-        isPublic: {
-            type: Boolean,
-            default: false,
-        },
+const FolderSchema = new mongoose.Schema({
+    name: { type: String, required: true, maxlength: 64 },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    parentFolder: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Folder',
+        default: null,
     },
-    { timestamps: true }
-)
+    isPublic: { type: Boolean, default: false },
+    megaUrl: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+})
 
-folderSchema.index({ name: 1, user: 1, parentFolder: 1 }, { unique: true })
-
-const Folder = mongoose.model('Folder', folderSchema)
-module.exports = Folder
+module.exports = mongoose.model('Folder', FolderSchema)

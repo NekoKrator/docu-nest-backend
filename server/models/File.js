@@ -1,27 +1,23 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
 
-const fileSchema = new Schema(
+const fileSchema = new mongoose.Schema(
     {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        url: {
-            type: String,
-            required: true,
-        },
+        name: { type: String, required: true, trim: true },
+        url: { type: String, required: true }, // Убедитесь, что это поле обязательно
         folder: {
-            type: Schema.Types.ObjectId,
+            type: mongoose.Schema.Types.ObjectId,
             ref: 'Folder',
             required: true,
         },
         user: {
-            type: Schema.Types.ObjectId,
+            type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true,
         },
+        size: { type: Number, default: 0 },
+        tags: { type: [String], default: [] },
+        readingProgress: { type: Number, default: 0 },
     },
     { timestamps: true }
 )
